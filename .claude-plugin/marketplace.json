@@ -1,0 +1,18 @@
+{
+  "name": "pipsyrs-agents",
+  "owner": {
+    "name": "pipsyrs",
+    "email": "apiprs24@gmail.com"
+  },
+  "metadata": {
+    "description": "Koleksi agent Claude Code untuk tim development."
+  },
+  "plugins": [
+    {
+      "name": "dev-team",
+      "source": "./platforms/claude-code",
+      "description": "Tim development multi-agent dengan orchestrator, QA, dan pentester otomatis.",
+      "version": "1.3.1"
+    }
+  ]
+}
