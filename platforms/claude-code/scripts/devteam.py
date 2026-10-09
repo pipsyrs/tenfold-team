@@ -30,6 +30,27 @@ def fail(msg):
     sys.exit(1)
 
 
+def check_add_remove(cmd, rest, regex, sep, what, example, url_hint):
+    # Explain exactly which part of `<cmd> add|remove <value>` is wrong
+    usage = f"usage: {cmd} add|remove <{what}>  (e.g. {cmd} add {example})"
+    if not rest:
+        fail(f"missing action and {what}\n{usage}")
+    if rest[0] not in ("add", "remove"):
+        fail(f"unknown action '{rest[0]}', use add or remove\n{usage}")
+    if len(rest) < 2:
+        fail(f"missing {what} after '{rest[0]}'\n{usage}")
+    if len(rest) > 2:
+        fail(f"expected one {what}, got {len(rest) - 1}: {' '.join(rest[1:])}\n{usage}")
+    val = rest[1]
+    if "://" in val or val.startswith("git@"):
+        fail(f"'{val}' is a URL; {cmd} {rest[0]} takes the {what} only. {url_hint}\n{usage}")
+    if not regex.match(val):
+        bad = sorted({c for c in val if not re.match(r"[A-Za-z0-9._-]", c) and c != sep})
+        hint = (f"invalid character(s): {' '.join(repr(c) for c in bad)}" if bad
+                else f"use at most one '{sep}', not at the start or end")
+        fail(f"'{val}' is not a valid {what} ({hint})\n{usage}")
+
+
 def load(path):
     try:
         return json.loads(path.read_text())
@@ -332,8 +353,8 @@ def main(argv):
         return apply_all()
 
     if cmd == "skill":
-        if len(rest) != 2 or rest[0] not in ("add", "remove") or not SKILL_RE.match(rest[1]):
-            fail("usage: skill add|remove <name>")
+        check_add_remove("skill", rest, SKILL_RE, ":", "skill name", "my-skill or plugin:skill",
+                         "Install the skill into .claude/skills/ or ~/.claude/skills/ first, then add it by its name")
         skills = set(sec.get("skills", []))
         (skills.add if rest[0] == "add" else skills.discard)(rest[1])
         sec["skills"] = sorted(skills)
@@ -344,8 +365,8 @@ def main(argv):
     if cmd == "plugin":
         if agent:
             fail("plugins apply to the whole session (all agents); drop --agent")
-        if len(rest) != 2 or rest[0] not in ("add", "remove") or not PLUGIN_RE.match(rest[1]):
-            fail("usage: plugin add|remove <plugin[@marketplace]>")
+        check_add_remove("plugin", rest, PLUGIN_RE, "@", "plugin[@marketplace]", "dev-team@pipsyrs-agents",
+                         "Add the marketplace first with `/plugin marketplace add <url>`, then add the plugin by name")
         action = "install" if rest[0] == "add" else "uninstall"
         if not run_claude_plugin(action, rest[1], "user" if is_global else "project"):
             sys.exit(1)
