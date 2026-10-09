@@ -264,6 +264,105 @@ def check_agent(name):
         fail(f"unknown agent '{name}'. Defaults: {', '.join(default_agents())}")
 
 
+def available_agents():
+    names = set(default_agents())
+    for d in (USER_DIR, PROJECT_CLAUDE):
+        if (d / "agents").is_dir():
+            names |= {p.stem for p in (d / "agents").glob("*.md") if CUSTOM_MARK in p.read_text()}
+    return sorted(names)
+
+
+def agent_value(cmd, rest):
+    # Validate model/effort/skill args before asking for a target
+    if cmd == "skill":
+        check_add_remove("skill", rest, SKILL_RE, ":", "skill name", "my-skill or plugin:skill",
+                         "Install the skill into .claude/skills/ or ~/.claude/skills/ first, then add it by its name")
+        return rest[1]
+    if not rest:
+        fail(f"{cmd} needs a value")
+    val = rest[0].lower() if cmd == "effort" else rest[0]
+    if val == "reset":
+        return val
+    if cmd == "model" and not MODEL_RE.match(val):
+        fail("model must be inherit|sonnet|opus|haiku|fable or a claude-* model id")
+    if cmd == "effort" and val not in EFFORTS:
+        fail(f"effort must be one of {sorted(EFFORTS)}")
+    return val
+
+
+def set_value(cfg, agents, key, val):
+    if agents is None:
+        cleared = sorted(n for n, sec in cfg.get("agents", {}).items() if sec.pop(key, None) is not None)
+        secs, who = [cfg.setdefault("defaults", {})], "all agents"
+    else:
+        cleared, secs, who = [], [target_section(cfg, a) for a in agents], ", ".join(agents)
+    for sec in secs:
+        if val == "reset":
+            sec.pop(key, None)
+        else:
+            sec[key] = val
+    note = f" (per-agent override removed: {', '.join(cleared)})" if cleared else ""
+    return [f"{key} = {val} for {who}{note}"]
+
+
+def tidy_skills(sec):
+    for k in ("skills", "skills_removed"):
+        if k in sec and not sec[k]:
+            sec.pop(k)
+
+
+def set_skill_all(cfg, action, name):
+    # All agents: defaults change and conflicting per-agent entries are cleared
+    defaults = cfg.setdefault("defaults", {})
+    skills = set(defaults.get("skills", []))
+    secs = cfg.get("agents", {})
+    if action == "add":
+        touched = sorted(n for n, sec in secs.items() if name in sec.get("skills_removed", []))
+        if name in skills and not touched:
+            fail(f"skill '{name}' is already set for all agents")
+        skills.add(name)
+    else:
+        touched = sorted(n for n, sec in secs.items() if name in sec.get("skills", []))
+        if name not in skills and not touched:
+            fail(f"skill '{name}' is not set for any agent")
+        skills.discard(name)
+    for sec in secs.values():
+        for k in ("skills", "skills_removed"):
+            if name in sec.get(k, []):
+                sec[k] = sorted(set(sec[k]) - {name})
+        tidy_skills(sec)
+    defaults["skills"] = sorted(skills)
+    tidy_skills(defaults)
+    note = f" (per-agent entries updated: {', '.join(touched)})" if touched else ""
+    return [f"skill {name} {'added to' if action == 'add' else 'removed from'} all agents{note}"]
+
+
+def set_skill_agents(cfg, base, agents, action, name):
+    msgs, skipped = [], []
+    for agent in agents:
+        sec = target_section(cfg, agent)
+        current = set(effective(merged_cfg(base), agent).get("skills", []))
+        skills, removed = set(sec.get("skills", [])), set(sec.get("skills_removed", []))
+        if action == "add":
+            if name in current:
+                skipped.append(f"{agent}: already set")
+                continue
+            skills.add(name)
+            removed.discard(name)
+        else:
+            if name not in current:
+                skipped.append(f"{agent}: not set (current: {', '.join(sorted(current)) or 'none'})")
+                continue
+            skills.discard(name)
+            removed.add(name)  # also opts out if it comes from the defaults
+        sec["skills"], sec["skills_removed"] = sorted(skills), sorted(removed)
+        tidy_skills(sec)
+        msgs.append(f"skills for {agent}: {sorted(current ^ {name}) or 'none'}")
+    if not msgs:
+        fail(f"skill '{name}' unchanged. " + "; ".join(skipped))
+    return msgs + [f"skipped {s}" for s in skipped]
+
+
 def target_section(cfg, agent):
     if agent:
         return cfg.setdefault("agents", {}).setdefault(agent, {})
@@ -411,7 +510,7 @@ def update(rest):
     print(f"dev-team updated {cur} -> {latest}. Restart the session to apply.")
 
 
-USAGE = """Usage: devteam.py <command> [args] [--agent NAME] [--global]
+USAGE = """Usage: devteam.py <command> [args] [--all | --agent NAME[,NAME...]] [--global]
   show
   apply
   language en|id
@@ -421,15 +520,19 @@ USAGE = """Usage: devteam.py <command> [args] [--agent NAME] [--global]
   skill add|remove <name>
   plugin add|remove <plugin[@marketplace]>
   update [check|now|auto on|off]
+model, effort and skill need --all or --agent; --all also clears per-agent overrides.
 --global writes ~/.claude (default: current project)."""
 
 
 def main(argv):
-    agent, is_global, args = None, False, []
+    agent, all_agents, is_global, args = None, False, False, []
     it = iter(argv)
     for a in it:
         if a == "--agent":
-            agent = next(it, None) or fail("--agent needs a name")
+            value = next(it, None) or fail("--agent needs a name (or name,name,...)")
+            agent = sorted({n.strip() for n in value.split(",") if n.strip()})
+        elif a == "--all":
+            all_agents = True
         elif a in ("--global", "--user"):
             is_global = True
         else:
@@ -468,55 +571,28 @@ def main(argv):
         print(f"platform = {rest[0]}")
         return protect_project()
 
-    check_agent(agent)
-    sec = target_section(cfg, agent)
-    who = agent or "all agents"
-
-    if cmd in ("model", "effort"):
-        if not rest:
-            fail(f"{cmd} needs a value")
-        val = rest[0].lower() if cmd == "effort" else rest[0]
-        if val == "reset":
-            sec.pop(cmd, None)
-        elif cmd == "model" and not MODEL_RE.match(val):
-            fail("model must be inherit|sonnet|opus|haiku|fable or a claude-* model id")
-        elif cmd == "effort" and val not in EFFORTS:
-            fail(f"effort must be one of {sorted(EFFORTS)}")
+    if cmd in ("model", "effort", "skill"):
+        val = agent_value(cmd, rest)
+        if agent and all_agents:
+            fail("use either --all or --agent, not both")
+        if not agent and not all_agents:
+            # No target given: the slash command asks the user, then re-runs with one
+            print(f"TARGET_REQUIRED: `{' '.join(args)}` needs a target, nothing changed.")
+            print("Agents: " + ", ".join(available_agents()))
+            print("Re-run with --all or --agent name[,name...]")
+            return
+        for a in agent or []:
+            check_agent(a)
+        if cmd != "skill":
+            msgs = set_value(cfg, agent, cmd, val)
+        elif agent:
+            msgs = set_skill_agents(cfg, base, agent, rest[0], val)
         else:
-            sec[cmd] = val
+            msgs = set_skill_all(cfg, rest[0], val)
+        if "agents" in cfg:
+            cfg["agents"] = {n: sec for n, sec in cfg["agents"].items() if sec}
         save(path, cfg)
-        print(f"{cmd} = {sec.get(cmd, 'reset')} for {who}")
-        return apply_all()
-
-    if cmd == "skill":
-        check_add_remove("skill", rest, SKILL_RE, ":", "skill name", "my-skill or plugin:skill",
-                         "Install the skill into .claude/skills/ or ~/.claude/skills/ first, then add it by its name")
-        action, name = rest
-        skills = set(sec.get("skills", []))
-        if agent:
-            current = set(effective(merged_cfg(base), agent).get("skills", []))
-            removed = set(sec.get("skills_removed", []))
-        else:
-            current, removed = skills, set()
-        if action == "add":
-            if name in current:
-                fail(f"skill '{name}' is already set for {who}")
-            skills.add(name)
-            removed.discard(name)
-        else:
-            if name not in current:
-                fail(f"skill '{name}' is not set for {who}. Current: {', '.join(sorted(current)) or 'none'}")
-            skills.discard(name)
-            if agent:
-                removed.add(name)  # also opts out if it comes from the defaults
-        sec["skills"] = sorted(skills)
-        if removed:
-            sec["skills_removed"] = sorted(removed)
-        else:
-            sec.pop("skills_removed", None)
-        save(path, cfg)
-        shown = effective(merged_cfg(base), agent).get("skills", []) if agent else sec["skills"]
-        print(f"skills for {who}: {shown or 'none'}")
+        print("\n".join(msgs))
         return apply_all()
 
     if cmd == "plugin":

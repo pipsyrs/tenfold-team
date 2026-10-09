@@ -117,15 +117,17 @@ Settings are saved for the **current project** by default. Add `--global` to app
 ```
 /dev-team:config show
 
-/dev-team:config model sonnet                    # all agents
+/dev-team:config model sonnet                    # asks: all agents or pick agents
+/dev-team:config model sonnet --all              # all agents
 /dev-team:config model opus --agent analyst      # one agent
-/dev-team:config model reset
+/dev-team:config model opus --agent analyst,qa   # several agents
+/dev-team:config model reset --all
 
-/dev-team:config effort high                     # low | medium | high | xhigh | max
+/dev-team:config effort high --all               # low | medium | high | xhigh | max
 /dev-team:config effort reset --agent qa
 
-/dev-team:config skill add security-review
-/dev-team:config skill remove security-review
+/dev-team:config skill add security-review --all
+/dev-team:config skill remove security-review --all
 /dev-team:config skill add taste --agent frontend          # one agent only
 /dev-team:config skill remove security-review --agent qa   # opt one agent out of a default skill
 
@@ -134,6 +136,7 @@ Settings are saved for the **current project** by default. Add `--global` to app
 ```
 
 - **model**: `inherit`, `sonnet`, `opus`, `haiku`, `fable`, or a full `claude-*` model ID.
+- Without `--all` or `--agent`, `model`, `effort` and `skill` ask whether to apply to all agents or let you pick agents. `--all` also clears per-agent overrides for that setting.
 - **skills** are preloaded into each agent. With `--agent`, add or remove for that agent only; removing a default skill opts just that agent out.
 - **language** and **platform** apply to the whole team and reject `--agent`.
 - **plugins** are installed for the whole session, so every agent can use them. They can't be set per agent.
