@@ -105,7 +105,7 @@ The Chairman reports each task as ✅ done / ⏳ pending / ❌ failed, followed 
 | Command | Description |
 |---|---|
 | `/dev-team:team <request>` | Run the full team flow for one request. |
-| `/dev-team:config ...` | Set model, effort, skills, plugins, language, platform. |
+| `/dev-team:config ...` | Show config, enable/disable agents, set model, effort, skills, plugins, language, platform. |
 | `/dev-team:lang [en\|id]` | Set output language (default `en`). |
 | `/dev-team:new-agent <name> [role]` | Create your own agent. |
 | `/dev-team:update [check\|now\|auto on\|off]` | Check for updates, update now, or toggle auto update. |
@@ -117,12 +117,21 @@ Settings are saved for the **current project** by default. Add `--global` to app
 ```
 /dev-team:config show
 
+/dev-team:config show                            # all agents: status, model, effort, skills + global settings
+/dev-team:config show agents                     # agent list with enabled/disabled status
+
+/dev-team:config disable frontend,qa             # no names: pick from a list
+/dev-team:config enable frontend
+
+/dev-team:config model list                      # available models
+/dev-team:config model                           # pick a model, then the agents
 /dev-team:config model sonnet                    # asks: all agents or pick agents
 /dev-team:config model sonnet --all              # all agents
 /dev-team:config model opus --agent analyst      # one agent
 /dev-team:config model opus --agent analyst,qa   # several agents
 /dev-team:config model reset --all
 
+/dev-team:config effort list
 /dev-team:config effort high --all               # low | medium | high | xhigh | max
 /dev-team:config effort reset --agent qa
 
@@ -135,7 +144,8 @@ Settings are saved for the **current project** by default. Add `--global` to app
 /dev-team:config plugin remove <plugin@marketplace>
 ```
 
-- **model**: `inherit`, `sonnet`, `opus`, `haiku`, `fable`, or a full `claude-*` model ID.
+- **model**: `inherit`, `sonnet`, `opus`, `haiku`, `fable`, or a full `claude-*` model ID. `model list` shows the known ones.
+- **disable** blocks an agent with a permission deny rule (`Agent(dev-team:<name>)`, `Agent(<name>)`) in `.claude/settings.local.json` (or `~/.claude/settings.json` with `--global`) and tells the Chairman not to delegate to it. `chairman` can't be disabled.
 - Without `--all` or `--agent`, `model`, `effort` and `skill` ask whether to apply to all agents or let you pick agents. `--all` also clears per-agent overrides for that setting.
 - **skills** are preloaded into each agent. With `--agent`, add or remove for that agent only; removing a default skill opts just that agent out.
 - **language** and **platform** apply to the whole team and reject `--agent`.
@@ -251,7 +261,7 @@ Bump `version` in both `plugin.json` and `marketplace.json` before releasing.
 /plugin uninstall dev-team@pipsyrs-agents
 ```
 
-Remove generated agent copies if you used `/dev-team:config`: delete the files marked `dev-team:generated` in `.claude/agents/` and `~/.claude/agents/`. If `.claude/settings.local.json` contains `"agent": "chairman"`, remove that line too. Then remove the `# dev-team` lines from `.gitignore`, and delete `.dev-team/` and `~/.claude/dev-team-update.json`.
+Remove generated agent copies if you used `/dev-team:config`: delete the files marked `dev-team:generated` in `.claude/agents/` and `~/.claude/agents/`. If `.claude/settings.local.json` contains `"agent": "chairman"` or `Agent(...)` deny rules added by `disable`, remove them too (run `/dev-team:config enable <agents>` before uninstalling to do it automatically). Then remove the `# dev-team` lines from `.gitignore`, and delete `.dev-team/` and `~/.claude/dev-team-update.json`.
 
 ## Troubleshooting
 
