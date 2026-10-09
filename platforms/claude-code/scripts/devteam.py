@@ -107,11 +107,15 @@ def render_keys(eff):
 
 def effective(cfg, name):
     eff = {k: v for k, v in cfg.get("defaults", {}).items() if v}
-    for k, v in cfg.get("agents", {}).get(name, {}).items():
+    agent = cfg.get("agents", {}).get(name, {})
+    for k, v in agent.items():
         if k == "skills":
             eff["skills"] = sorted(set(eff.get("skills", [])) | set(v))
-        elif v:
+        elif k != "skills_removed" and v:
             eff[k] = v
+    # Per-agent opt-out from default skills
+    if agent.get("skills_removed"):
+        eff["skills"] = sorted(set(eff.get("skills", [])) - set(agent["skills_removed"]))
     return eff
 
 
@@ -314,6 +318,8 @@ def main(argv):
         return show()
     if cmd == "apply":
         return apply_all()
+    if agent and cmd in ("language", "lang", "platform"):
+        fail(f"{cmd} applies to the whole team (all agents); drop --agent")
     if cmd in ("language", "lang"):
         if not rest:
             print(f"language: {cfg.get('language', 'en (default)')}")
@@ -355,11 +361,32 @@ def main(argv):
     if cmd == "skill":
         check_add_remove("skill", rest, SKILL_RE, ":", "skill name", "my-skill or plugin:skill",
                          "Install the skill into .claude/skills/ or ~/.claude/skills/ first, then add it by its name")
+        action, name = rest
         skills = set(sec.get("skills", []))
-        (skills.add if rest[0] == "add" else skills.discard)(rest[1])
+        if agent:
+            current = set(effective(merged_cfg(base), agent).get("skills", []))
+            removed = set(sec.get("skills_removed", []))
+        else:
+            current, removed = skills, set()
+        if action == "add":
+            if name in current:
+                fail(f"skill '{name}' is already set for {who}")
+            skills.add(name)
+            removed.discard(name)
+        else:
+            if name not in current:
+                fail(f"skill '{name}' is not set for {who}. Current: {', '.join(sorted(current)) or 'none'}")
+            skills.discard(name)
+            if agent:
+                removed.add(name)  # also opts out if it comes from the defaults
         sec["skills"] = sorted(skills)
+        if removed:
+            sec["skills_removed"] = sorted(removed)
+        else:
+            sec.pop("skills_removed", None)
         save(path, cfg)
-        print(f"skills for {who}: {sec['skills'] or 'none'}")
+        shown = effective(merged_cfg(base), agent).get("skills", []) if agent else sec["skills"]
+        print(f"skills for {who}: {shown or 'none'}")
         return apply_all()
 
     if cmd == "plugin":
