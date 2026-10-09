@@ -27,7 +27,7 @@ Every agent detects your project's techstack (from `package.json`, `composer.jso
 | Requirement | Version | Used for |
 |---|---|---|
 | Claude Code | 2.1.295+ (tested) | Plugins, `SubagentStart` hook, `effort` in agent frontmatter |
-| `python3` | 3.8+ | `/dev-team:config`, `/dev-team:lang`, `/dev-team:new-agent` |
+| `python3` | 3.8+ | `/dev-team:config`, `/dev-team:lang`, `/dev-team:new-agent`, `/dev-team:update`, update check hook |
 | `sh` | any POSIX shell | Language hook |
 
 Older Claude Code versions may still install the plugin, but some features (such as per-agent `effort`) may be ignored.
@@ -108,6 +108,7 @@ The Chairman reports each task as ✅ done / ⏳ pending / ❌ failed, followed 
 | `/dev-team:config ...` | Set model, effort, skills, plugins, language, platform. |
 | `/dev-team:lang [en\|id]` | Set output language (default `en`). |
 | `/dev-team:new-agent <name> [role]` | Create your own agent. |
+| `/dev-team:update [check\|now\|auto on\|off]` | Check for updates, update now, or toggle auto update. |
 
 Settings are saved for the **current project** by default. Add `--global` to apply them to all projects.
 
@@ -160,6 +161,19 @@ Replies and reports follow the configured language. Code, identifiers and code c
 - A custom agent that uses a default agent's name **replaces** that default.
 - Other custom agents are included by the Chairman when they're relevant to the task.
 - Custom agents are marked `<!-- dev-team:custom -->` and get your `/dev-team:config` model, effort and skills too.
+
+## Update
+
+```
+/dev-team:update               # check: installed vs latest version
+/dev-team:update now           # update right away
+/dev-team:update auto on       # install new versions automatically
+/dev-team:update auto off      # only notify (default)
+```
+
+- At session start, dev-team checks for a new version at most once a day, in the background, so startup is not delayed.
+- With auto update **off**, a notice tells you when a new version is available. With it **on**, the update installs in the background and the next session tells you to restart.
+- Updates take effect after a restart. The auto update setting is global (`~/.claude/dev-team.json`). The last check is cached in `~/.claude/dev-team-update.json`.
 
 ## Config file
 
@@ -234,7 +248,7 @@ Bump `version` in both `plugin.json` and `marketplace.json` before releasing.
 /plugin uninstall dev-team@pipsyrs-agents
 ```
 
-Remove generated agent copies if you used `/dev-team:config`: delete the files marked `dev-team:generated` in `.claude/agents/` and `~/.claude/agents/`. If `.claude/settings.local.json` contains `"agent": "chairman"`, remove that line too. Then remove the `# dev-team` lines from `.git/info/exclude`.
+Remove generated agent copies if you used `/dev-team:config`: delete the files marked `dev-team:generated` in `.claude/agents/` and `~/.claude/agents/`. If `.claude/settings.local.json` contains `"agent": "chairman"`, remove that line too. Then remove the `# dev-team` lines from `.gitignore`, and delete `.dev-team/` and `~/.claude/dev-team-update.json`.
 
 ## Troubleshooting
 

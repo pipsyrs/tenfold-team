@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 PLUGIN_ROOT = Path(os.environ.get("CLAUDE_PLUGIN_ROOT") or Path(__file__).resolve().parent.parent)
@@ -23,6 +24,10 @@ NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 SKILL_RE = re.compile(r"^[A-Za-z0-9._-]+(:[A-Za-z0-9._-]+)?$")
 PLUGIN_RE = re.compile(r"^[A-Za-z0-9._-]+(@[A-Za-z0-9._-]+)?$")
 KEYS = ("model", "effort", "skills")
+MARKETPLACE = "pipsyrs-agents"
+PLUGIN_ID = f"dev-team@{MARKETPLACE}"
+UPDATE_STATE = USER_DIR / "dev-team-update.json"
+UPDATE_INTERVAL = 24 * 3600
 
 
 def fail(msg):
@@ -284,6 +289,128 @@ def show():
     print("Defaults: language=en, platform=claude-code, model/effort=inherit, no extra skills")
 
 
+def read_json(path):
+    # Like load(), but never exits: used by hooks and background jobs
+    try:
+        return json.loads(Path(path).read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def version_tuple(v):
+    return tuple(int(x) for x in re.findall(r"\d+", v or "0"))
+
+
+def installed_version():
+    return read_json(PLUGIN_ROOT / ".claude-plugin" / "plugin.json").get("version", "0")
+
+
+def run_claude(*args, timeout=120):
+    try:
+        return subprocess.run(["claude", *args], capture_output=True, text=True, timeout=timeout)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return None
+
+
+def latest_version():
+    # Refresh the marketplace clone, then read the version it publishes
+    r = run_claude("plugin", "marketplace", "update", MARKETPLACE)
+    if not r or r.returncode:
+        return None
+    known = read_json(USER_DIR / "plugins" / "known_marketplaces.json").get(MARKETPLACE, {})
+    loc = Path(known.get("installLocation") or USER_DIR / "plugins" / "marketplaces" / MARKETPLACE)
+    plugins = read_json(loc / ".claude-plugin" / "marketplace.json").get("plugins", [])
+    return next((p.get("version") for p in plugins if p.get("name") == "dev-team"), None)
+
+
+def install_scope():
+    recs = read_json(USER_DIR / "plugins" / "installed_plugins.json").get("plugins", {}).get(PLUGIN_ID, [])
+    return recs[0].get("scope", "user") if recs else "user"
+
+
+def auto_update_on():
+    return read_json(cfg_path(USER_DIR)).get("auto_update") is True
+
+
+def save_state(**kw):
+    state = read_json(UPDATE_STATE)
+    state.update(kw)
+    try:
+        save(UPDATE_STATE, state)
+    except OSError:
+        pass
+
+
+def install_update():
+    r = run_claude("plugin", "update", PLUGIN_ID, "--scope", install_scope(), timeout=300)
+    out = ((r.stdout + r.stderr).strip().splitlines() if r else []) or ["'claude' CLI not found or timed out"]
+    return bool(r) and r.returncode == 0, out[-1]
+
+
+def update_hook():
+    # SessionStart: notify from cached state (no network), refresh in background when stale
+    state, cur = read_json(UPDATE_STATE), installed_version()
+    latest = state.get("latest")
+    if latest and version_tuple(latest) > version_tuple(cur):
+        if state.get("updated_to") == latest:
+            msg = f"dev-team updated to {latest}. Restart the session to apply."
+        else:
+            msg = f"dev-team {latest} is available (installed {cur}). Run /dev-team:update now"
+        print(json.dumps({"systemMessage": msg}))
+    if time.time() - state.get("checked", 0) >= UPDATE_INTERVAL:
+        save_state(checked=time.time())
+        subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "update", "background"],
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+
+
+def update_background():
+    latest = latest_version()
+    if not latest:
+        return
+    save_state(latest=latest)
+    if auto_update_on() and version_tuple(latest) > version_tuple(installed_version()):
+        ok, _ = install_update()
+        if ok:
+            save_state(updated_to=latest)
+
+
+def update(rest):
+    sub = rest[0] if rest else "check"
+    if sub == "hook":
+        return update_hook()
+    if sub == "background":
+        return update_background()
+    if sub == "auto":
+        if len(rest) != 2 or rest[1] not in ("on", "off"):
+            fail("usage: update auto on|off")
+        cfg = load(cfg_path(USER_DIR))
+        cfg["auto_update"] = rest[1] == "on"
+        save(cfg_path(USER_DIR), cfg)
+        when = "installs" if rest[1] == "on" else "only notifies about"
+        print(f"auto update: {rest[1]} (dev-team checks once a day at session start and {when} new versions)")
+        return
+    if sub not in ("check", "now"):
+        fail(f"unknown update action '{sub}'\nusage: update [check|now|auto on|off]")
+    cur = installed_version()
+    latest = latest_version()
+    if not latest:
+        fail(f"could not check for updates (`claude plugin marketplace update {MARKETPLACE}` failed)")
+    save_state(checked=time.time(), latest=latest)
+    auto = "on" if auto_update_on() else "off"
+    if version_tuple(latest) <= version_tuple(cur):
+        print(f"dev-team {cur} is up to date (auto update: {auto})")
+        return
+    if sub == "check":
+        print(f"dev-team {latest} is available (installed {cur}, auto update: {auto}). Run /dev-team:update now")
+        return
+    ok, last = install_update()
+    if not ok:
+        fail(f"update failed: {last}")
+    save_state(updated_to=latest)
+    print(f"dev-team updated {cur} -> {latest}. Restart the session to apply.")
+
+
 USAGE = """Usage: devteam.py <command> [args] [--agent NAME] [--global]
   show
   apply
@@ -293,6 +420,7 @@ USAGE = """Usage: devteam.py <command> [args] [--agent NAME] [--global]
   effort <low|medium|high|xhigh|max|reset>
   skill add|remove <name>
   plugin add|remove <plugin[@marketplace]>
+  update [check|now|auto on|off]
 --global writes ~/.claude (default: current project)."""
 
 
@@ -314,6 +442,8 @@ def main(argv):
     path = cfg_path(base)
     cfg = load(path)
 
+    if cmd == "update":
+        return update(rest)
     if cmd == "show":
         return show()
     if cmd == "apply":
