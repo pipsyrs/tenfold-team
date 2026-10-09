@@ -1,6 +1,6 @@
 {
   "name": "dev-team",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Tim development multi-agent: chairman (orchestrator), analyst, frontend, backend, database, qa, pentester.",
   "author": {
     "name": "pipsyrs",

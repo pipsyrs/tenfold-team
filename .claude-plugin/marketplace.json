@@ -12,7 +12,7 @@
       "name": "dev-team",
       "source": "./platforms/claude-code",
       "description": "Tim development multi-agent dengan orchestrator, QA, dan pentester otomatis.",
-      "version": "1.4.0"
+      "version": "1.5.0"
     }
   ]
 }
