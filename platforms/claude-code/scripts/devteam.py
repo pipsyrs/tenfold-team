@@ -177,7 +177,8 @@ def apply_all():
     protect_project()
 
 
-EXCLUDE_HEADER = "# dev-team (auto, local only)"
+IGNORE_HEADER = "# dev-team"
+ARTIFACT_DIR = ".dev-team"
 
 
 def git(*args):
@@ -189,18 +190,17 @@ def git(*args):
 
 
 def protect_project():
-    # Keep dev-team files out of git via .git/info/exclude (never committed)
+    # Keep dev-team files and artifacts out of git via the project .gitignore
     top = git("rev-parse", "--show-toplevel")
-    exclude = git("rev-parse", "--git-path", "info/exclude")
-    if not top or not exclude:
+    if not top:
         return
     top = Path(top)
-    exclude = Path(exclude) if Path(exclude).is_absolute() else PROJECT_DIR / exclude
+    gitignore = top / ".gitignore"
     files = [cfg_path(PROJECT_CLAUDE), PROJECT_CLAUDE / "settings.local.json"]
     agents_dir = PROJECT_CLAUDE / "agents"
     if agents_dir.is_dir():
         files += [p for p in agents_dir.glob("*.md") if GEN_MARK in p.read_text() or CUSTOM_MARK in p.read_text()]
-    entries = []
+    entries = [f"/{ARTIFACT_DIR}/"]
     for f in files:
         if not f.exists():
             continue
@@ -208,19 +208,18 @@ def protect_project():
             entries.append("/" + f.resolve().relative_to(top.resolve()).as_posix())
         except ValueError:
             continue
-    current = exclude.read_text().splitlines() if exclude.exists() else []
+    current = gitignore.read_text().splitlines() if gitignore.exists() else []
     new = [e for e in entries if e not in current]
     if not new:
         return
-    if EXCLUDE_HEADER not in current:
-        new.insert(0, EXCLUDE_HEADER)
-    exclude.parent.mkdir(parents=True, exist_ok=True)
-    with exclude.open("a") as fh:
+    if IGNORE_HEADER not in current:
+        new.insert(0, IGNORE_HEADER)
+    with gitignore.open("a") as fh:
         if current and current[-1] != "":
             fh.write("\n")
         fh.write("\n".join(new) + "\n")
     tracked = [e for e in entries if git("ls-files", "--error-unmatch", e.lstrip("/"))]
-    print(f"git: {len(new) - (EXCLUDE_HEADER in new)} dev-team file(s) excluded locally (.git/info/exclude)")
+    print(f"git: {len(new) - (IGNORE_HEADER in new)} dev-team entr(ies) added to .gitignore")
     if tracked:
         print("Warning: already tracked by git, run `git rm --cached` on: " + ", ".join(tracked))
 

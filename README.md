@@ -183,14 +183,15 @@ Files that dev-team creates in your project are kept out of git **automatically*
 | `.claude/dev-team.json` | Your settings |
 | `.claude/agents/*.md` marked `dev-team:generated` or `dev-team:custom` | Generated and custom agents |
 | `.claude/settings.local.json` | Makes your configured `chairman` the primary agent |
+| `.dev-team/` | Reports, notes, ADRs and scan/test results written by agents |
 
-- They are added to `.git/info/exclude`. That file is local to your machine and never committed, and your `.gitignore` is not touched.
+- They are added to your project's `.gitignore` under a `# dev-team` header. Agents also add `/.dev-team/` before writing their first artifact.
 - This runs on every `/dev-team:config`, `/dev-team:lang` and `/dev-team:new-agent`.
 - If one of these files was already committed, dev-team prints a warning. Untrack it with `git rm --cached <file>`.
 - Global settings (`--global`) live in `~/.claude/`, outside your project.
 - dev-team never stores credentials. Plugins you add with `plugin add` are installed with `claude plugin install`, so only add plugins you trust.
 
-To share settings with your team on purpose, run `git add -f .claude/dev-team.json`.
+To share settings with your team on purpose, remove the entry from `.gitignore` or run `git add -f .claude/dev-team.json`.
 
 ## Repository layout
 

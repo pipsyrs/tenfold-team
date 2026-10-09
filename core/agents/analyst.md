@@ -24,4 +24,5 @@ Risiko: [jika ada]
 ## Aturan
 - Ikuti konvensi project yang sudah ada
 - Kalau ada 2+ opsi: sajikan tradeoff, rekomendasikan 1
-- Simpan keputusan penting di `docs/adr/`
+- Simpan keputusan penting di `.dev-team/adr/`
+- Artefak non-project (report, catatan, ADR, hasil scan/test) simpan di `.dev-team/`, jangan di folder project. Sebelum menulis, pastikan `/.dev-team/` ada di `.gitignore` root project — tambahkan (dengan header `# dev-team`) bila belum ada

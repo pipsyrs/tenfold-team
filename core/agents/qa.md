@@ -23,3 +23,4 @@ Deteksi testing framework dari project (Jest, Pytest, PHPUnit, Pest, RSpec, Go t
 ## Aturan
 - Jangan perbaiki kode — laporkan: `[BUG → BACKEND/FRONTEND]: ...`
 - Ikuti konvensi test yang sudah ada di project
+- Artefak non-project (report, catatan, ADR, hasil scan/test) simpan di `.dev-team/`, jangan di folder project. Sebelum menulis, pastikan `/.dev-team/` ada di `.gitignore` root project — tambahkan (dengan header `# dev-team`) bila belum ada
