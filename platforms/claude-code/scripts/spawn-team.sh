@@ -8,56 +8,77 @@ cat > .vscode/tasks.json << 'TASKS'
     {
       "label": "👑 chairman",
       "type": "shell",
-      "command": "claude --agent dev-team:chairman",
+      "command": "claude --agent tenfold:chairman",
       "presentation": { "panel": "dedicated", "reveal": "always", "focus": true }
     },
     {
-      "label": "🔍 analyst",
+      "label": "📋 product-manager",
       "type": "shell",
-      "command": "claude --agent dev-team:analyst",
+      "command": "claude --agent tenfold:product-manager",
       "presentation": { "panel": "dedicated", "reveal": "silent", "focus": false }
     },
     {
-      "label": "🎨 frontend",
+      "label": "🏗️ architect",
       "type": "shell",
-      "command": "claude --agent dev-team:frontend",
+      "command": "claude --agent tenfold:architect",
+      "presentation": { "panel": "dedicated", "reveal": "silent", "focus": false }
+    },
+    {
+      "label": "🎨 designer",
+      "type": "shell",
+      "command": "claude --agent tenfold:designer",
       "presentation": { "panel": "dedicated", "reveal": "silent", "focus": false }
     },
     {
       "label": "⚙️ backend",
       "type": "shell",
-      "command": "claude --agent dev-team:backend",
+      "command": "claude --agent tenfold:backend",
       "presentation": { "panel": "dedicated", "reveal": "silent", "focus": false }
     },
     {
       "label": "🗄️ database",
       "type": "shell",
-      "command": "claude --agent dev-team:database",
+      "command": "claude --agent tenfold:database",
+      "presentation": { "panel": "dedicated", "reveal": "silent", "focus": false }
+    },
+    {
+      "label": "🧭 tech-lead",
+      "type": "shell",
+      "command": "claude --agent tenfold:tech-lead",
       "presentation": { "panel": "dedicated", "reveal": "silent", "focus": false }
     },
     {
       "label": "✅ qa",
       "type": "shell",
-      "command": "claude --agent dev-team:qa",
+      "command": "claude --agent tenfold:qa",
       "presentation": { "panel": "dedicated", "reveal": "silent", "focus": false }
     },
     {
-      "label": "🔐 pentester",
+      "label": "🔐 security",
       "type": "shell",
-      "command": "claude --agent dev-team:pentester",
+      "command": "claude --agent tenfold:security",
       "presentation": { "panel": "dedicated", "reveal": "silent", "focus": false }
     },
     {
-      "label": "🚀 Spawn Dev Team",
+      "label": "🚀 devops",
+      "type": "shell",
+      "command": "claude --agent tenfold:devops",
+      "presentation": { "panel": "dedicated", "reveal": "silent", "focus": false }
+    },
+    {
+      "label": "🚀 Spawn Tenfold Team",
       "dependsOrder": "parallel",
       "dependsOn": [
         "👑 chairman",
-        "🔍 analyst",
-        "🎨 frontend",
+        "📋 product-manager",
+        "🏗️ architect",
+        "🎨 designer",
         "⚙️ backend",
         "🗄️ database",
+        "🧭 tech-lead",
         "✅ qa",
-        "🔐 pentester"
+        "🔐 security",
+        "🚀 devops"
       ],
       "group": { "kind": "build", "isDefault": true }
     }

@@ -1,5 +1,5 @@
 ---
-description: Configure dev-team (show, enable/disable agents, model, effort, skills, plugins, language, platform) for all agents or selected agents
+description: Configure tenfold (show, enable/disable agents, model, effort, skills, plugins, language, platform) for all agents or selected agents
 argument-hint: "show [agents] | enable|disable <agents> | model [list|<m>] | effort [list|<e>] | skill add|remove <s> | plugin add|remove <p> | language en|id | platform claude-code [--all | --agent NAME[,NAME...]] [--global]"
 allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/devteam.py:*)
 ---

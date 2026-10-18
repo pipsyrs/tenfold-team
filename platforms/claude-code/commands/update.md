@@ -1,5 +1,5 @@
 ---
-description: Check for dev-team updates, update now, or toggle auto update
+description: Check for tenfold updates, update now, or toggle auto update
 argument-hint: "[check|now|auto on|off]"
 allowed-tools: Bash(python3 ${CLAUDE_PLUGIN_ROOT}/scripts/devteam.py:*)
 ---

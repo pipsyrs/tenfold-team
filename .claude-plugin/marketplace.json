@@ -1,5 +1,5 @@
 {
-  "name": "pipsyrs-agents",
+  "name": "tenfold-team",
   "owner": {
     "name": "pipsyrs",
     "email": "apiprs24@gmail.com"
@@ -9,10 +9,10 @@
   },
   "plugins": [
     {
-      "name": "dev-team",
+      "name": "tenfold",
       "source": "./platforms/claude-code",
-      "description": "Tim development multi-agent dengan orchestrator, QA, dan pentester otomatis.",
-      "version": "1.6.0"
+      "description": "Tim development multi-agent dengan orchestrator, product manager, architect, tech lead, QA, security, dan devops.",
+      "version": "2.0.0"
     }
   ]
 }

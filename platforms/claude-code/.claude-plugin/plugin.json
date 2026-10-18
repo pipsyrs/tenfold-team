@@ -1,7 +1,7 @@
 {
-  "name": "dev-team",
-  "version": "1.6.0",
-  "description": "Tim development multi-agent: chairman (orchestrator), analyst, frontend, backend, database, qa, pentester.",
+  "name": "tenfold",
+  "version": "2.0.0",
+  "description": "Tim development multi-agent: chairman (orchestrator), product-manager, architect, designer, backend, database, tech-lead, qa, security, devops.",
   "author": {
     "name": "pipsyrs",
     "email": "apiprs24@gmail.com"
