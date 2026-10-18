@@ -53,24 +53,6 @@ Older Claude Code versions may still install the plugin, but some features (such
 | Claude Code | ✅ Supported |
 | Codex, others | 🔜 Planned |
 
-### Where Claude Code runs
-
-| Surface | Status |
-|---|---|
-| Terminal (CLI) | ✅ Tested |
-| VS Code / Cursor (Claude Code extension) | ⚠️ Should work (same CLI), not tested |
-| JetBrains IDEs (Claude Code plugin) | ⚠️ Should work (same CLI), not tested |
-| Claude desktop app, claude.ai/code (web) | ❓ Not tested |
-
-### Operating systems
-
-| OS | Status |
-|---|---|
-| Linux | ✅ Tested |
-| macOS | ⚠️ Should work, not tested |
-| Windows (WSL) | ⚠️ Should work, not tested |
-| Windows (native) | ❓ Not tested — needs Git Bash for hooks and `python3` on `PATH` |
-
 ### Models and effort
 
 - **Models**: `inherit`, `sonnet`, `opus`, `haiku`, `fable`, or any full `claude-*` model ID
