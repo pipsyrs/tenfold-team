@@ -256,24 +256,21 @@ To share settings with your team on purpose, remove the entry from `.gitignore` 
 
 ```
 .claude-plugin/marketplace.json   marketplace manifest
-core/agents/                      agent prompts — edit agents HERE
 platforms/claude-code/            Claude Code plugin
   .claude-plugin/plugin.json
-  agents/                         built from core/ (don't edit)
+  agents/                         agent prompts — edit agents HERE
   commands/                       slash commands
   hooks/hooks.json                language injection
   scripts/devteam.py              config + agent generation
   scripts/lang-context.sh         language hook
   scripts/spawn-team.sh           optional: VS Code tasks per agent
   settings.json                   sets chairman as the primary agent
-build.sh                          copies core/ into each platform
 ```
 
 ### Development
 
 ```sh
-# after editing core/agents/*
-./build.sh
+# after editing platforms/claude-code/agents/*
 claude plugin validate .
 claude plugin validate platforms/claude-code
 
